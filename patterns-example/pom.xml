@@ -1,0 +1,111 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>patterns-example</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <name>patterns-example</name>
+  <description>patterns-example</description>
+
+  <properties>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <encoding>UTF-8</encoding>
+    <scala.version>3.3.1</scala.version>
+    <antlr4.version>4.9.2</antlr4.version>
+  </properties>
+
+  <dependencies>
+
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala3-library_3</artifactId>
+      <version>${scala.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala3-compiler_3</artifactId>
+      <version>${scala.version}</version>
+    </dependency>
+
+    <dependency>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-runtime</artifactId>
+        <version>${antlr4.version}</version>
+    </dependency>
+
+    <!-- Test -->
+  </dependencies>
+
+  <build>
+    <!-- <sourceDirectory>src/main/scala</sourceDirectory>
+    <testSourceDirectory>src/test/scala</testSourceDirectory> -->
+    <plugins>
+      <plugin>
+        <!-- see http://davidb.github.com/scala-maven-plugin -->
+        <groupId>net.alchim31.maven</groupId>
+        <artifactId>scala-maven-plugin</artifactId>
+        <version>4.8.1</version>
+        <configuration></configuration>
+        <executions>
+          <execution>
+            <?m2e execute onConfiguration?>
+            <goals>
+              <goal>compile</goal>
+              <goal>testCompile</goal>
+            </goals>
+            <configuration>
+               <scalaVersion>${scala.version}</scalaVersion>
+               <!-- <args>
+                 <arg>-release:8</arg>
+               </args> -->
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- antlr -->
+      <plugin>
+        <groupId>org.antlr</groupId>
+        <artifactId>antlr4-maven-plugin</artifactId>
+        <version>${antlr4.version}</version>
+        <executions>
+          <execution>
+            <id>antlr</id>
+            <goals>
+              <goal>antlr4</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <arguments>
+            <argument>-visitor</argument>
+            <argument>-listener</argument>
+          </arguments>
+        </configuration>
+      </plugin>
+
+      <!-- <plugin>
+        <groupId>ch.epfl.scala</groupId>
+        <artifactId>bloop-maven-plugin</artifactId>
+        <version>2.0.0</version>
+        <executions>
+          <execution>
+            <id>bloopInstall</id>
+            <goals>
+              <goal>bloopInstall</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <downloadSources>true</downloadSources>
+          <scalaOptions></scalaOptions>
+        </configuration>
+      </plugin> -->
+
+
+    </plugins>
+  </build>
+</project>
+<!-- mvn ch.epfl.scala:bloop-maven-plugin:2.0.0:bloopInstall -DdownloadSources=true -->
+<!-- https://davidb.github.io/scala-maven-plugin/example_compile.html -->
+
