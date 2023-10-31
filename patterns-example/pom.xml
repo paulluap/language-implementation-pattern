@@ -34,6 +34,12 @@
     </dependency>
 
     <!-- Test -->
+    <dependency>
+      <groupId>org.scalameta</groupId>
+      <artifactId>munit_3</artifactId>
+      <version>1.0.0-M10</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

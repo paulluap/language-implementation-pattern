@@ -3,12 +3,22 @@
  */
 grammar Cymbol;
 
-file:   (functionDecl | varDecl)+ ;
+file:   (structDecl | functionDecl | varDecl)+ ;
+
+structDecl
+    :  'struct' ID '{' structMember+ '}' ';'
+    ;
+
+structMember
+    :  type ID ';'   #FieldDecl
+    | structDecl     #NestedStructDecl 
+    ;
 
 varDecl
     :   type ID ('=' expr)? ';'
     ;
-type:   'float' | 'int' | 'void' ; // user-defined types
+
+type:   'float' | 'int' | 'void' | ID ; // user-defined types
 
 functionDecl
     :   type ID '(' formalParameters? ')' block // "void f(int x) {...}"
@@ -25,6 +35,7 @@ block:  '{' stat* '}' ;   // possibly empty statement block
 
 stat:   block
     |   varDecl
+    |   structDecl
     |   'if' expr 'then' stat ('else' stat)?
     |   'return' expr? ';' 
     |   expr '=' expr ';' // assignment
@@ -49,15 +60,18 @@ expr[int _p]
 */
 
 expr:   ID '(' exprList? ')'    # Call
+    |   ID ('.' ID)+            # MemberAccess
     |   expr '[' expr ']'       # Index
     |   '-' expr                # Negate
     |   '!' expr                # Not
     |   expr '*' expr           # Mult
     |   expr ('+'|'-') expr     # AddSub
     |   expr '==' expr          # Equal
-    |   ID                      # Var
     |   INT                     # Int
+    |   BOOLEAN                 # Bool
+    |   ID                      # Var
     |   '(' expr ')'            # Parens
+
     ;
 
 exprList : expr (',' expr)* ;   // arg list
@@ -65,11 +79,14 @@ exprList : expr (',' expr)* ;   // arg list
 K_FLOAT : 'float';
 K_INT   : 'int';
 K_VOID  : 'void';
-ID  :   LETTER (LETTER | [0-9])* ;
 fragment
 LETTER : [a-zA-Z] ;
 
 INT :   [0-9]+ ;
+
+BOOLEAN: 'true' | 'false';
+
+ID  :   LETTER (LETTER | [0-9])* ; //specific rule should come before this
 
 WS  :   [ \t\n\r]+ -> skip ;
 
