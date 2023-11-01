@@ -11,7 +11,7 @@ import org.antlr.v4.runtime.tree.ParseTreeWalker
 
 @main
 def callgraph: Unit =
-  val tree = ParserUtil.parse("src/main/resources/t.cymbol") 
+  val (tree, tokens) = ParserUtil.parse("src/main/resources/t.cymbol") 
   val walker = new ParseTreeWalker()
   val collector = new FunctionListener
   walker.walk(collector, tree)

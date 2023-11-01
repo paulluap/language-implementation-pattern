@@ -29,6 +29,8 @@ import com.google.protobuf.Struct
 import dotty.tools.dotc.core.StdNames.str
 import org.antlr.v4.runtime.tree.ParseTree
 import com.example.CymbolParser.AddSubContext
+import org.antlr.v4.runtime.TokenStream
+import org.antlr.v4.runtime.TokenStreamRewriter
 
 trait Type:
   def getName(): String
@@ -38,10 +40,12 @@ trait Type:
 //   def scope: Scope
 
 sealed abstract class Symbol(name: String):
-  //TODO why track scope in symbol ?
+  //TODO why track scope in symbol, one case is to compute qualified name
+  //if the scope is also symbol, then it has a name
   var scope: Scope = null
   var `type`: Type = null
   def getName(): String = this.name
+  //TODO implement fully qualified name 
   override def toString(): String = 
     s"<${name}:${`type`}>"
 
@@ -319,7 +323,7 @@ class RefPhase(globals: GlobalScope)(using scopes: ParseTreeProperty[Scope], sym
     * Let t be the ID node for x's type, 
     * ref t, yielding sym
     * 
-    * Set t.symbol to sym. 
+    * Set t.symbol to sym. (Note it's t, not t.ID(), t may not have id, like prmitives int, flaot, etc.)
     * 
     * Set x.symbol.type to sym; 
     * in other words, jump to the VariableSymbol for x via the AST node's symbol field and then set its type field to sym
@@ -347,47 +351,100 @@ class RefPhase(globals: GlobalScope)(using scopes: ParseTreeProperty[Scope], sym
     *
     * @param x
     */
-  override def exitVar(x: VarContext): Unit = 
+  override def exitVar/*Ref*/(x: VarContext): Unit = 
     val name = x.ID().getText()
     val sym = currentScope.resolve(name)
-    x.symbol = sym
-    // println(s"ref ${name} : ${varSymbol}")
+    x.ID().symbol = sym
+    println(s"ref ${name} : ${sym}")
     if sym == null then
-      println(s"err! no such variable : ${name}")
+      println(s"ERROR! no such variable : ${name}")
     if sym.isInstanceOf[FunctionSymbol] then
-      println(s"err! ${name} is not a variable but a function")
+      println(s"ERROR! ${name} is not a variable but a function")
 
   override def exitCall(x: CallContext): Unit = 
     val name = x.ID().getText()
     val funSymbol = currentScope.resolve(name)
     if funSymbol == null then 
-      println(s"no such funtion ${name}")
+      println(s"ERROR! no such funtion ${name}")
     if funSymbol.isInstanceOf[VariableSymbol] then
-      println(s"err! ${name} is not a function but a variable")
+      println(s"ERROR! ${name} is not a function but a variable")
 
-  //a.b.c
+  //
+  /**
+   *  <expr>.x
+   * 
+   *  resolve <expr> to a particular type symbol, esym, 
+   *  using the rules. 
+   * 
+   *  ref x within esym's scope, yielding sym.
+   * 
+   *  Set x.symbol (x's ID node) to sym
+   */
   override def exitMemberAccess(x: MemberAccessContext): Unit = 
     //can we break the member access segments into subrules, so one enter* function handling one segment a time
-    val qualifiers = x.ID().asScala.map(_.getText())
-    val q1Def = currentScope.resolve(qualifiers.head)
-    //from second on, reolsve Member in struct
-    println("=> context: " + qualifiers.mkString("."))
-    val finalSymbol = qualifiers.tail.foldLeft(q1Def): (prevDef, name) =>  
-      val struct = prevDef.`type`.asInstanceOf[StructSymbol]
-      val res = struct.resolveMember(name)
-      println(s"${name} resolved to ${res} of ${res.`type`}")
-      res
+    val qualifiers = x.ID().asScala
+    val q1Def: Symbol = currentScope.resolve(qualifiers.head.getText())
+    if ! q1Def.`type`.isInstanceOf[StructSymbol] then
+      println("ERROR! member access head should be a reference to variable of type struct")
+    qualifiers.head.symbol = q1Def
+    //from second on, resolve Member in struct
+    // println("=> context: " + qualifiers.mkString(".") + " struct scope: " + q1Def.`type`.isInstanceOf[StructSymbol])
+    val finalSymbol = qualifiers.tail.foldLeft(q1Def): (prevDef, id) =>  
+      val esym = prevDef.`type`.asInstanceOf[StructSymbol] //TypeSymbol
+      val sym = esym.resolveMember(id.getText())
+      id.symbol = sym
+      sym
+    // println(s" ${qualifiers.map(_.getText()).mkString(".")} final symbol ${finalSymbol}")
 
-  
+end RefPhase
+
+class SymbolAnnotateRewritePhase(tokens: TokenStream)
+  (using scopes: ParseTreeProperty[Scope], symbols:  ParseTreeProperty[Symbol]) 
+  extends CymbolBaseListener:
+    val rewriter = TokenStreamRewriter(tokens)
+    //all id reference, 
+    //all type ref 
+    //member access 
+    override def enterVar(ctx: VarContext): Unit = 
+      val defSym = ctx.ID().symbol
+      rewriter.insertAfter(ctx.start, s"/*${if defSym == null then "unresolved" else defSym.`type`.getName()}*/")
+
+    override def enterType(ctx: TypeContext): Unit = 
+      val tpeSymbol = ctx.symbol //already a type symbol 
+      rewriter.insertAfter(ctx.start, s"/*${tpeSymbol.getName()}*/")
+
+    override def enterMemberAccess(ctx: MemberAccessContext): Unit = 
+      val evalSymbol = ctx.ID().asScala.last.symbol
+      rewriter.insertAfter(ctx.stop, s"/*${if evalSymbol == null then "unresolved" else evalSymbol.`type`.getName()}*/")
+
+
+end SymbolAnnotateRewritePhase
+
+
+
+object SymbolTableApp:
+  def resolveSymbol(parseTree: ParseTree, tokens: TokenStream): String =
+    val symtab = SymbolTable()
+    val defPhase = DefPhase(symtab.globals)
+    val walker = ParseTreeWalker()
+    walker.walk(defPhase, parseTree)
+    val refPhase = RefPhase(defPhase.globals)(using defPhase.scopes, defPhase.symbols)
+    walker.walk(refPhase, parseTree)
+    val rewritePhase = SymbolAnnotateRewritePhase(tokens)(using defPhase.scopes, defPhase.symbols)
+    walker.walk(rewritePhase, parseTree)
+    rewritePhase.rewriter.getText();
+
 @main
 def testSymbolTable: Unit = 
-  val parseTree = ParserUtil.parse("./src/main/resources/tt.cymbol")
-  val symtab = SymbolTable()
-  val defPhase = DefPhase(symtab.globals)
-  val walker = ParseTreeWalker()
-  walker.walk(defPhase, parseTree)
-  val refPhase = RefPhase(defPhase.globals)(using defPhase.scopes, defPhase.symbols)
-  walker.walk(refPhase, parseTree)
+  println("+" * 100)
+  val code = SymbolTableApp.resolveSymbol.tupled(ParserUtil.parseFile("./src/main/resources/tt.cymbol"))
+  println(code)
+  println("+" * 100)
 
-//TODO method symbol type resolution
-//TODO true, false literal, 
+ 
+
+/**
+  * 
+  * Is type computation only relevant to expression ? Yes
+  * 
+  */

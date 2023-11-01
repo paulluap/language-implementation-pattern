@@ -88,8 +88,8 @@ BOOLEAN: 'true' | 'false';
 
 ID  :   LETTER (LETTER | [0-9])* ; //specific rule should come before this
 
-WS  :   [ \t\n\r]+ -> skip ;
+WS  :   [ \t\n\r]+ -> channel(HIDDEN) ;
 
 SL_COMMENT
-    :   '//' .*? '\n' -> skip
+    :   '//' .*? '\n' -> channel(HIDDEN)
     ;

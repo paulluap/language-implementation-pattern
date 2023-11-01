@@ -1,19 +1,22 @@
-// start of global scope      // <callout id="co.aggr-symtab-globals"/>
-struct A {                    // <callout id="co.aggr-symtab-A"/>
+struct A {
   int x;
-  struct B { int y; };        // <callout id="co.aggr-symtab-B"/>
+  struct B {
+    int y;
+    float zz;
+  };
   B b;
-  struct C { int z; };        // <callout id="co.aggr-symtab-C"/>
+  struct C { int z; };
   C c;
 };
 A a;
 
-void f()                      // <callout id="co.aggr-symtab-f"/>
-{                             // <callout id="co.aggr-symtab-f1"/>
-  struct D {                  // <callout id="co.aggr-symtab-D"/>
+void f()
+{
+  struct D {
     int i;
   };
   D d;
   d = d;
-  d.i = a.b.y;
+  d.z = a.b.y;
+  a.b.zz;
 }
