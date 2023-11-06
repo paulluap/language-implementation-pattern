@@ -31,6 +31,7 @@ import org.antlr.v4.runtime.tree.ParseTree
 import com.example.CymbolParser.AddSubContext
 import org.antlr.v4.runtime.TokenStream
 import org.antlr.v4.runtime.TokenStreamRewriter
+import java.{util => ju}
 
 trait Type:
   def getName(): String
@@ -124,23 +125,13 @@ class StructSymbol(name: String, parent: Scope) extends ScopedSymbol(name, paren
   override def toString(): String = 
     s"struct ${name} :{ ${fields.keySet().asScala.mkString(",")} }"
 
-class FunctionSymbol(name: String, enclosingScope: Scope) extends Symbol(name) with Scope:
-  val arguments = ju.LinkedHashMap[String, Symbol]()
-  override def define(sym: Symbol): Unit = 
-    arguments.put(sym.getName(), sym)
-    //TODO sym.scope = this
-  override def getEnclosingScope(): Scope = enclosingScope
-  override def getScopeName(): String = name
+class FunctionSymbol(name: String, enclosingScope: Scope) extends ScopedSymbol(name, enclosingScope):
+  val orderedArgs = ju.LinkedHashMap[String, Symbol]()
   override def toString(): String = 
-    s"function ${super.toString()} : ${arguments.values()}"
-  override def resolve(name: String): Symbol = 
-    val s = arguments.get(name)
-    if s != null then 
-      s
-    else if enclosingScope != null then 
-      enclosingScope.resolve(name)
-    else 
-      null
+    s"function ${super.toString()} : ${orderedArgs.values()}"
+  override def getMembers(): ju.Map[String, Symbol] = 
+    orderedArgs
+
 
 
 class SymbolTable:
@@ -157,15 +148,11 @@ class SymbolTable:
     builtInTypes.foreach: t =>
       globals.define(t)
 
-object SymbolTable:
-  val _boolean = BultinTypeSymbol("booelean")
-
 extension(x: ParseTree)(using scopes: ParseTreeProperty[Scope], symbols:  ParseTreeProperty[Symbol])
   def scope: Scope = scopes.get(x)
   def scope_=(s: Scope): Unit = scopes.put(x, s)
   def symbol: Symbol = symbols.get(x)
   def symbol_=(s: Symbol): Unit = symbols.put(x, s)
-
 
 //test our symbol table
 class DefPhase(val globals: GlobalScope) extends CymbolBaseListener:

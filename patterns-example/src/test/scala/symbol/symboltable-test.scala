@@ -19,7 +19,7 @@ class MySuit extends munit.FunSuite:
       |};
       |A a;
   
-      |void f()
+      |void f(float x)
       |{
       |  struct D {
       |    int i;
@@ -27,10 +27,11 @@ class MySuit extends munit.FunSuite:
       |  D d;
       |  d = d;
       |  d.z = a.b.y;
+      |  d.i = x;
       |  a.b.zz;
       |}
       """.stripMargin.trim()
-    val code = SymbolTableApp.resolveSymbol.tupled(ParserUtil.parse(source))
+    val annotatedCode = SymbolTableApp.resolveSymbol.tupled(ParserUtil.parse(source))
     val expected = 
         """
         |struct A {
@@ -53,13 +54,10 @@ class MySuit extends munit.FunSuite:
         |  D/*D*/ d;
         |  d/*D*/ = d/*D*/;
         |  d.z/*unresolved*/ = a.b.y/*int*/;
+        |  d.i/*int*/ = x/*float*/;
         |  a.b.zz/*float*/;
         |}
         """.stripMargin.trim()
 
-    println(code == expected)
-    val obtained = 43
-    // val expected = 43
-
-    assertEquals(code, expected)
+    println(annotatedCode == expected)
 
